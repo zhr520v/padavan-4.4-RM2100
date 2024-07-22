@@ -203,7 +203,7 @@ if [ "$CONFIG_FIRMWARE_INCLUDE_OC" = "y" ]; then
 fi
 
 ############################# USB #####################################
-if [ "$CONFIG_FIRMWARE_ENABLE_USB" != "y" ] || [ -z "$CONFIG_USB_SUPPORT" ] ; then
+if [ "$CONFIG_FIRMWARE_ENABLE_USB" != "n" ] || [ -z "$CONFIG_USB_SUPPORT" ] ; then
 	func_disable_busybox_param "CONFIG_FDISK"
 	func_disable_busybox_param "CONFIG_FEATURE_FDISK_WRITABLE"
 	func_disable_busybox_param "CONFIG_FEATURE_FDISK_ADVANCED"
