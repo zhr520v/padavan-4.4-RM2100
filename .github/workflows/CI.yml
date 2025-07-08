@@ -1,5 +1,4 @@
 name: CI
-
 # Controls when the action will run.
 on:
   workflow_dispatch:
@@ -14,24 +13,46 @@ jobs:
       targets: "RM2100"
       images_dir: /opt/images
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: toolchain-mipsel
+          key: ${{ runner.os }}-toolchain-${{ hashFiles('toolchain-mipsel/dl_toolchain.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-toolchain-
+      
       - name: Prepare environment
         run: |
           sudo apt update
-          sudo apt install libtool-bin gperf python3-docutils autopoint gettext
+          sudo apt install -y libtool-bin gperf python3-docutils autopoint gettext
+      
       - name: Run shellcheck
         run: sh ./trunk/tools/shellcheck.sh
+      
       - name: Prepare toolchain
         run: |
           cd toolchain-mipsel
           sh dl_toolchain.sh
+      
       - name: Start build
         run: |
           cd trunk
           mkdir -p ${images_dir}
-          for m in $targets; do fakeroot ./build_firmware_ci $m; \
-          if [ $? = 0 ]; then cp -f images/*.trx ${images_dir}/$m.trx; else exit 1; fi; \
-          ./clear_tree_simple >/dev/null 2>&1; done
+          for m in $targets; do
+            echo "Building firmware for $m"
+            fakeroot ./build_firmware_ci $m
+            if [ $? -eq 0 ]; then
+              cp -f images/*.trx ${images_dir}/$m.trx
+              echo "✅ Build successful for $m"
+            else
+              echo "❌ Build failed for $m"
+              exit 1
+            fi
+            ./clear_tree_simple >/dev/null 2>&1
+          done
+      
       - name: Create archive
         if: success()
         run: |
@@ -40,13 +61,16 @@ jobs:
           image_name=images_${build_variant}_${GIT_VERSION} || image_name=images_${build_variant}
           cd ${images_dir}; md5sum *.trx |tee md5sum.txt; 7z a -mx=9 ${image_name}.7z ./*
           echo "image_name=${image_name}" >> $GITHUB_ENV
+      
       - name: Upload images to Artifact
         if: success()
-        uses: actions/upload-artifact@v2.2.1
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.image_name }}
           path: ${{ env.images_dir }}/*.7z
+      
       - name: Upload firmware to WeTransfer
+        if: success()
         run: |
           curl -fsSL git.io/file-transfer | sh
           ./transfer wet -s -p 16 --no-progress /opt/images/*.trx 2>&1 | tee wetransfer.log
