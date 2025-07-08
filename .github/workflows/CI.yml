@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     name: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       build_variant: "mt7621-usb-2"
       targets: "RM2100"
